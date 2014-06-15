@@ -215,6 +215,11 @@ The goal will be to use data from accelerometers on the belt, forearm, arm, and 
 
 <p>We start by getting rid of features that have zero variance by getting their indexs.</p>
 
+<pre><code>## Loading required package: caret
+## Loading required package: lattice
+## Loading required package: ggplot2
+</code></pre>
+
 <p>Those are the columns that have zero variance.</p>
 
 <pre><code>## [1] &quot;kurtosis_yaw_belt&quot;     &quot;skewness_yaw_belt&quot;     &quot;kurtosis_yaw_dumbbell&quot;
@@ -307,33 +312,33 @@ rf_model1 &lt;- train(classe ~ ., data=training[,-c(1,4)],method=&quot;rf&quot;)
 ## 
 ##           Reference
 ## Prediction    A    B    C    D    E
-##          A 4138   23   10   10    1
-##          B   18 2800   19    8    6
-##          C   12   18 2519   30    8
-##          D   12    4   13 2360    5
-##          E    5    3    6    4 2686
+##          A 4146   22   12    8    1
+##          B   15 2795   18    7    5
+##          C   10   21 2518   26    7
+##          D   11    7   15 2367    5
+##          E    3    3    4    4 2688
 ## 
 ## Overall Statistics
 ##                                         
-##                Accuracy : 0.985         
-##                  95% CI : (0.983, 0.987)
+##                Accuracy : 0.986         
+##                  95% CI : (0.984, 0.988)
 ##     No Information Rate : 0.284         
 ##     P-Value [Acc &gt; NIR] : &lt;2e-16        
 ##                                         
 ##                   Kappa : 0.982         
-##  Mcnemar&#39;s Test P-Value : 0.217         
+##  Mcnemar&#39;s Test P-Value : 0.669         
 ## 
 ## Statistics by Class:
 ## 
 ##                      Class: A Class: B Class: C Class: D Class: E
-## Sensitivity             0.989    0.983    0.981    0.978    0.993
-## Specificity             0.996    0.996    0.994    0.997    0.999
-## Pos Pred Value          0.989    0.982    0.974    0.986    0.993
-## Neg Pred Value          0.996    0.996    0.996    0.996    0.998
+## Sensitivity             0.991    0.981    0.981    0.981    0.993
+## Specificity             0.996    0.996    0.995    0.997    0.999
+## Pos Pred Value          0.990    0.984    0.975    0.984    0.995
+## Neg Pred Value          0.996    0.996    0.996    0.996    0.999
 ## Prevalence              0.284    0.194    0.174    0.164    0.184
-## Detection Rate          0.281    0.190    0.171    0.160    0.182
-## Detection Prevalence    0.284    0.194    0.176    0.163    0.184
-## Balanced Accuracy       0.992    0.989    0.988    0.988    0.996
+## Detection Rate          0.282    0.190    0.171    0.161    0.183
+## Detection Prevalence    0.285    0.193    0.175    0.163    0.184
+## Balanced Accuracy       0.993    0.989    0.988    0.989    0.996
 </code></pre>
 
 <ul>
@@ -353,33 +358,33 @@ rf_model1 &lt;- train(classe ~ ., data=training[,-c(1,4)],method=&quot;rf&quot;)
 ## 
 ##           Reference
 ## Prediction    A    B    C    D    E
-##          A 1384    6    4    3    0
-##          B    4  930    4    2    2
-##          C    4    7  837    6    1
-##          D    3    3    8  791    3
-##          E    0    3    2    2  895
+##          A 1377    7    2    5    0
+##          B    6  934    5    3    3
+##          C    6    4  838   10    2
+##          D    4    1    6  784    3
+##          E    2    3    4    2  893
 ## 
 ## Overall Statistics
-##                                         
-##                Accuracy : 0.986         
-##                  95% CI : (0.983, 0.989)
-##     No Information Rate : 0.284         
-##     P-Value [Acc &gt; NIR] : &lt;2e-16        
-##                                         
-##                   Kappa : 0.983         
-##  Mcnemar&#39;s Test P-Value : NA            
+##                                        
+##                Accuracy : 0.984        
+##                  95% CI : (0.98, 0.987)
+##     No Information Rate : 0.284        
+##     P-Value [Acc &gt; NIR] : &lt;2e-16       
+##                                        
+##                   Kappa : 0.98         
+##  Mcnemar&#39;s Test P-Value : 0.71         
 ## 
 ## Statistics by Class:
 ## 
 ##                      Class: A Class: B Class: C Class: D Class: E
-## Sensitivity             0.992    0.980    0.979    0.984    0.993
-## Specificity             0.996    0.997    0.996    0.996    0.998
-## Pos Pred Value          0.991    0.987    0.979    0.979    0.992
-## Neg Pred Value          0.997    0.995    0.996    0.997    0.999
+## Sensitivity             0.987    0.984    0.980    0.975    0.991
+## Specificity             0.996    0.996    0.995    0.997    0.997
+## Pos Pred Value          0.990    0.982    0.974    0.982    0.988
+## Neg Pred Value          0.995    0.996    0.996    0.995    0.998
 ## Prevalence              0.284    0.194    0.174    0.164    0.184
-## Detection Rate          0.282    0.190    0.171    0.161    0.183
-## Detection Prevalence    0.285    0.192    0.174    0.165    0.184
-## Balanced Accuracy       0.994    0.988    0.987    0.990    0.996
+## Detection Rate          0.281    0.190    0.171    0.160    0.182
+## Detection Prevalence    0.284    0.194    0.175    0.163    0.184
+## Balanced Accuracy       0.992    0.990    0.987    0.986    0.994
 </code></pre>
 
 <ul>
@@ -401,33 +406,6 @@ rf_model1 &lt;- train(classe ~ ., data=training[,-c(1,4)],method=&quot;rf&quot;)
 <h3>Predict the results for the problem set</h3>
 
 <p>Using the same Random Forest model we developed in the training round, we predict the outcome for the problem set.</p>
-
-<h3>Results</h3>
-
-<p>Here is the results for the problem set.</p>
-
-<pre><code>##       problem_id prediction
-##  [1,] &quot;1&quot;        &quot;B&quot;       
-##  [2,] &quot;2&quot;        &quot;A&quot;       
-##  [3,] &quot;3&quot;        &quot;B&quot;       
-##  [4,] &quot;4&quot;        &quot;A&quot;       
-##  [5,] &quot;5&quot;        &quot;A&quot;       
-##  [6,] &quot;6&quot;        &quot;E&quot;       
-##  [7,] &quot;7&quot;        &quot;D&quot;       
-##  [8,] &quot;8&quot;        &quot;B&quot;       
-##  [9,] &quot;9&quot;        &quot;A&quot;       
-## [10,] &quot;10&quot;       &quot;A&quot;       
-## [11,] &quot;11&quot;       &quot;B&quot;       
-## [12,] &quot;12&quot;       &quot;C&quot;       
-## [13,] &quot;13&quot;       &quot;B&quot;       
-## [14,] &quot;14&quot;       &quot;A&quot;       
-## [15,] &quot;15&quot;       &quot;E&quot;       
-## [16,] &quot;16&quot;       &quot;E&quot;       
-## [17,] &quot;17&quot;       &quot;A&quot;       
-## [18,] &quot;18&quot;       &quot;B&quot;       
-## [19,] &quot;19&quot;       &quot;B&quot;       
-## [20,] &quot;20&quot;       &quot;B&quot;
-</code></pre>
 
 </body>
 

@@ -193,12 +193,17 @@ The goal will be to use data from accelerometers on the belt, forearm, arm, and 
 
 <h3>Reading, cleaning and prepocessing the data.</h3>
 
+<p><img src="figures/illustration.png" alt="illustration"/></p>
+
 <p>We start by loading the data from the training set.</p>
 
 <pre><code class="r">raw_training_data &lt;- read.csv(&quot;./pml-training.csv&quot;,header=T)
 </code></pre>
 
 <p>Converting the data field from character into a Date field.</p>
+
+<pre><code class="r">raw_training_data$cvtd_timestamp_mod &lt;- as.Date(as.character(raw_training_data$cvtd_timestamp),format=&quot;%d/%m/%Y %H:%M&quot;)
+</code></pre>
 
 <p>Dealing with ** DIV/0 ** feilds:</p>
 
@@ -207,20 +212,48 @@ The goal will be to use data from accelerometers on the belt, forearm, arm, and 
 <li>Then looping over those columns that have such cells - and cast their type to numeric.</li>
 </ul>
 
+<pre><code class="r">#getting columns that have DIV/0
+columns_with_div_zero = names(which(sapply(apply(raw_training_data,2,function(x) grep(&quot;DIV/0&quot;,x)),function(x) length(x))&gt;0))
+
+training_data &lt;- raw_training_data
+for(i in columns_with_div_zero) {
+  index_nan &lt;- which(training_data[,i]==&quot;#DIV/0!&quot;) 
+  training_data[index_nan,i]=NaN
+  training_data[,i] &lt;-as.numeric(training_data[,i]) 
+}
+</code></pre>
+
 <p>Then we need to drop un-nessary levels from the data frame.</p>
 
+<pre><code class="r">training_data &lt;- droplevels(training_data)
+</code></pre>
+
 <p>Separting <strong>factor</strong> variables together and <strong>numeric</strong> variables together.</p>
+
+<pre><code class="r">factor_columns &lt;- training_data[,c(1,2,3,4,5,6,160,161)]
+numeric_columns &lt;- training_data[,-c(1,2,3,4,5,6,160,161)]
+</code></pre>
 
 <h3>Selecting features</h3>
 
 <p>We start by getting rid of features that have zero variance by getting their indexs.</p>
+
+<pre><code class="r">require(caret)
+</code></pre>
 
 <pre><code>## Loading required package: caret
 ## Loading required package: lattice
 ## Loading required package: ggplot2
 </code></pre>
 
+<pre><code class="r">nsv &lt;- nearZeroVar(numeric_columns,saveMetrics=TRUE)
+columns_to_delete &lt;- which(nsv$zeroVar==T)
+</code></pre>
+
 <p>Those are the columns that have zero variance.</p>
+
+<pre><code class="r">colnames(numeric_columns)[columns_to_delete]
+</code></pre>
 
 <pre><code>## [1] &quot;kurtosis_yaw_belt&quot;     &quot;skewness_yaw_belt&quot;     &quot;kurtosis_yaw_dumbbell&quot;
 ## [4] &quot;skewness_yaw_dumbbell&quot; &quot;kurtosis_yaw_forearm&quot;  &quot;skewness_yaw_forearm&quot;
@@ -228,13 +261,28 @@ The goal will be to use data from accelerometers on the belt, forearm, arm, and 
 
 <p>Then we create a new data frame with only the columns that have a <strong>non zero variance</strong>.</p>
 
+<pre><code class="r">numeric_columns_with_non_zero_variance &lt;- numeric_columns[,-columns_to_delete] 
+</code></pre>
+
 <h3>Imputing missing data</h3>
 
 <p>As a strategy for getting good accuracy, we can use <strong>knnImpute</strong> method to fill-in missing or NaN value with appropriate values based on the K neighbours cases.</p>
 
+<pre><code class="r">impute_object &lt;- preProcess(x=numeric_columns_with_non_zero_variance,method=&quot;knnImpute&quot;)
+numeric_columns_imputed &lt;- predict(impute_object,numeric_columns_with_non_zero_variance)
+</code></pre>
+
 <p>Similarly we elemintae columns that have zero variance after imputing the data.frame</p>
 
+<pre><code class="r">require(caret)
+nsv2 &lt;- nearZeroVar(numeric_columns_imputed,saveMetrics=TRUE)
+columns_to_delete2 &lt;- which(nsv2$zeroVar==T)
+</code></pre>
+
 <p>Those are the columns to eleminate</p>
+
+<pre><code class="r">colnames(numeric_columns_imputed)[columns_to_delete2] 
+</code></pre>
 
 <pre><code>## [1] &quot;amplitude_yaw_dumbbell&quot; &quot;amplitude_yaw_forearm&quot;
 </code></pre>
@@ -247,7 +295,18 @@ The goal will be to use data from accelerometers on the belt, forearm, arm, and 
 <p>Note: we also did scale and center the data.</p>
 </blockquote>
 
+<pre><code class="r">numeric_columns_imputed_non_zero_variance &lt;- numeric_columns_imputed[,-columns_to_delete2]
+
+pca_obj &lt;- preProcess(numeric_columns_imputed_non_zero_variance,method=c(&quot;scale&quot;,&quot;center&quot;,&quot;pca&quot;),thresh=0.9)
+numeric_pca_final &lt;- predict(pca_obj,numeric_columns_imputed_non_zero_variance)
+
+#heatmap(as.matrix(numeric_pca_final))
+</code></pre>
+
 <p>Combining the factors columns with the transformed PCA data frame will compose the new training data frame.</p>
+
+<pre><code class="r">new_training_data &lt;- cbind(factor_columns[,c(2,6,7,8)],numeric_pca_final)
+</code></pre>
 
 <h3>Subseting the training sample</h3>
 
@@ -259,6 +318,12 @@ The goal will be to use data from accelerometers on the belt, forearm, arm, and 
 </ul>
 
 <p>The model will be trained on the the training subset and cross-validated on the testing sample.</p>
+
+<pre><code class="r">inTrain &lt;- createDataPartition(y=new_training_data$classe,p=0.75,list=FALSE)
+
+training &lt;- new_training_data[inTrain,]
+testing &lt;- new_training_data[-inTrain,]
+</code></pre>
 
 <h3>Building the model</h3>
 
@@ -303,20 +368,26 @@ rf_model1 &lt;- train(classe ~ ., data=training[,-c(1,4)],method=&quot;rf&quot;)
 <li>Compute the <strong>confusion matrix</strong> to get the accuracy of the model (<em><strong>inbound sample error</strong></em>).</li>
 </ul>
 
+<pre><code class="r">p_inbound &lt;- predict(rf_model1,newdata=training[,-3])
+</code></pre>
+
 <pre><code>## Loading required package: randomForest
 ## randomForest 4.6-7
 ## Type rfNews() to see new features/changes/bug fixes.
+</code></pre>
+
+<pre><code class="r">confusionMatrix(p_inbound,training[,3])
 </code></pre>
 
 <pre><code>## Confusion Matrix and Statistics
 ## 
 ##           Reference
 ## Prediction    A    B    C    D    E
-##          A 4146   22   12    8    1
-##          B   15 2795   18    7    5
-##          C   10   21 2518   26    7
-##          D   11    7   15 2367    5
-##          E    3    3    4    4 2688
+##          A 4145   20    9    8    1
+##          B   16 2798   16    8    6
+##          C   11   19 2519   26    6
+##          D    9    7   17 2366    7
+##          E    4    4    6    4 2686
 ## 
 ## Overall Statistics
 ##                                         
@@ -326,18 +397,18 @@ rf_model1 &lt;- train(classe ~ ., data=training[,-c(1,4)],method=&quot;rf&quot;)
 ##     P-Value [Acc &gt; NIR] : &lt;2e-16        
 ##                                         
 ##                   Kappa : 0.982         
-##  Mcnemar&#39;s Test P-Value : 0.669         
+##  Mcnemar&#39;s Test P-Value : 0.821         
 ## 
 ## Statistics by Class:
 ## 
 ##                      Class: A Class: B Class: C Class: D Class: E
-## Sensitivity             0.991    0.981    0.981    0.981    0.993
+## Sensitivity             0.990    0.982    0.981    0.981    0.993
 ## Specificity             0.996    0.996    0.995    0.997    0.999
-## Pos Pred Value          0.990    0.984    0.975    0.984    0.995
-## Neg Pred Value          0.996    0.996    0.996    0.996    0.999
+## Pos Pred Value          0.991    0.984    0.976    0.983    0.993
+## Neg Pred Value          0.996    0.996    0.996    0.996    0.998
 ## Prevalence              0.284    0.194    0.174    0.164    0.184
-## Detection Rate          0.282    0.190    0.171    0.161    0.183
-## Detection Prevalence    0.285    0.193    0.175    0.163    0.184
+## Detection Rate          0.282    0.190    0.171    0.161    0.182
+## Detection Prevalence    0.284    0.193    0.175    0.163    0.184
 ## Balanced Accuracy       0.993    0.989    0.988    0.989    0.996
 </code></pre>
 
@@ -354,15 +425,19 @@ rf_model1 &lt;- train(classe ~ ., data=training[,-c(1,4)],method=&quot;rf&quot;)
 <li>Compute the <strong>confusion matrix</strong> for the testing subset.</li>
 </ul>
 
+<pre><code class="r">p1 &lt;- predict(rf_model1,newdata=testing[,-3])
+confusionMatrix(p1,testing[,3])
+</code></pre>
+
 <pre><code>## Confusion Matrix and Statistics
 ## 
 ##           Reference
 ## Prediction    A    B    C    D    E
-##          A 1377    7    2    5    0
-##          B    6  934    5    3    3
-##          C    6    4  838   10    2
-##          D    4    1    6  784    3
-##          E    2    3    4    2  893
+##          A 1378    9    5    5    0
+##          B    5  931    7    2    2
+##          C    5    6  837   10    3
+##          D    6    1    4  785    1
+##          E    1    2    2    2  895
 ## 
 ## Overall Statistics
 ##                                        
@@ -372,19 +447,19 @@ rf_model1 &lt;- train(classe ~ ., data=training[,-c(1,4)],method=&quot;rf&quot;)
 ##     P-Value [Acc &gt; NIR] : &lt;2e-16       
 ##                                        
 ##                   Kappa : 0.98         
-##  Mcnemar&#39;s Test P-Value : 0.71         
+##  Mcnemar&#39;s Test P-Value : 0.836        
 ## 
 ## Statistics by Class:
 ## 
 ##                      Class: A Class: B Class: C Class: D Class: E
-## Sensitivity             0.987    0.984    0.980    0.975    0.991
-## Specificity             0.996    0.996    0.995    0.997    0.997
-## Pos Pred Value          0.990    0.982    0.974    0.982    0.988
-## Neg Pred Value          0.995    0.996    0.996    0.995    0.998
+## Sensitivity             0.988    0.981    0.979    0.976    0.993
+## Specificity             0.995    0.996    0.994    0.997    0.998
+## Pos Pred Value          0.986    0.983    0.972    0.985    0.992
+## Neg Pred Value          0.995    0.995    0.996    0.995    0.999
 ## Prevalence              0.284    0.194    0.174    0.164    0.184
-## Detection Rate          0.281    0.190    0.171    0.160    0.182
-## Detection Prevalence    0.284    0.194    0.175    0.163    0.184
-## Balanced Accuracy       0.992    0.990    0.987    0.986    0.994
+## Detection Rate          0.281    0.190    0.171    0.160    0.183
+## Detection Prevalence    0.285    0.193    0.176    0.163    0.184
+## Balanced Accuracy       0.991    0.988    0.987    0.987    0.996
 </code></pre>
 
 <ul>
@@ -403,9 +478,53 @@ rf_model1 &lt;- train(classe ~ ., data=training[,-c(1,4)],method=&quot;rf&quot;)
 <p>Note: detailed explaination for each step is ignored in this section as it almost identical to the section above.</p>
 </blockquote>
 
+<pre><code class="r"># Reading the data for the problems
+raw_testing_data &lt;- read.csv(&quot;./pml-testing.csv&quot;,header=T)
+
+# Converting date field from character to Date
+raw_testing_data$cvtd_timestamp_mod &lt;- as.Date(as.character(raw_testing_data$cvtd_timestamp),format=&quot;%d/%m/%Y %H:%M&quot;)
+
+
+# Converting the same columns we removed in the training from characters to numeric.
+# Converting 
+testing_data &lt;- raw_testing_data
+for(i in columns_with_div_zero) {
+  testing_data[,i] &lt;-as.numeric(testing_data[,i]) 
+}
+
+# Drop extra levels for factor columns 
+testing_data &lt;- droplevels(testing_data)
+
+# Separating between factor columns and numeric columns that will scale, center and carry out PCA against.
+testing_factor_columns &lt;- testing_data[,c(1,2,3,4,5,6,160,161)]
+testing_numeric_columns &lt;- testing_data[,-c(1,2,3,4,5,6,160,161)]
+
+# Deleting the same exact columns we did in the training set to get rid of columns that we don&#39;t consider as useful feature in prediction.
+testing_numeric_columns_2 &lt;- testing_numeric_columns[,-columns_to_delete] 
+
+# Impute missing data with the same object we did compute in the training round.
+testing_numeric_columns_3 &lt;- predict(impute_object,testing_numeric_columns_2)
+
+
+# deleting the same columns that we previously deleted in the training round (due to the zero variation)
+testing_numeric_columns_4 &lt;- testing_numeric_columns_3[,-columns_to_delete2]
+
+# Now transform the data frame (scale, center and PCA) using the same PCA object we developed in the training round.
+testing_numeric_columns_5 &lt;- predict(pca_obj,testing_numeric_columns_4)
+
+# Merge the transformed data columns with the original factor columns.
+new_testing_data &lt;- cbind(testing_factor_columns[,c(2,6,7,8)],testing_numeric_columns_5)
+</code></pre>
+
 <h3>Predict the results for the problem set</h3>
 
 <p>Using the same Random Forest model we developed in the training round, we predict the outcome for the problem set.</p>
+
+<pre><code class="r">p_tested &lt;- predict(rf_model1,newdata=new_testing_data[,-3])
+
+## Combine the results with the problem id in a single data frame.
+results &lt;- cbind(problem_id=new_testing_data[,3],prediction=as.character(p_tested))
+</code></pre>
 
 </body>
 
